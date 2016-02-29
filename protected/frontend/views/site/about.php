@@ -6,7 +6,7 @@ require_once 'protected/common/helpers/CLQLConst.php';
 
 use common\helpers\MsgList;
 use common\helpers\CLQL;
-use common\helpers\CLQLMgr;
+use common\helpers\CLQLReqMgr;
 
 $json_req = '{
 	"system" : {
@@ -112,7 +112,7 @@ $this->params['breadcrumbs'][] = $this->title;
     <?php
 
 		$dbg_stack = new MsgList();
-		$mgr = new CLQLMgr();
+		$mgr = new CLQLReqMgr();
 
 		$mgr->validateCLQLRequest($json_req);
 
