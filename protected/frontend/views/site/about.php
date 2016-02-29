@@ -8,6 +8,13 @@ use common\helpers\MsgList;
 use common\helpers\CLQL;
 use common\helpers\CLQLReqMgr;
 
+
+$query_resp = [
+
+	['id' => 123, 'name' =>'Test1', 'mpg' => 12.1, 'horsepower' => 123, 'imgPath' => 'http://x/image1.com',  'overallScore' => 5.5, 'safety' => 4, 'reliability' => 5, 'utility' => 2, 'headroom' => 44.5, 'envy'=> 2.4],
+//	['id' => 2469, 'name' =>'Test2', 'mpg' => 10.9, 'horsepower' => 145,  'imgPath' => 'http://y/image1.com',  'overallScore' => 9.4, 'safety' => 4, 'reliability' => 5, 'utility' => 2, 'headroom' => 44.5, 'envy'=> 2.4],
+];
+
 $json_req = '{
 	"system" : {
 		"_debug"	: false
@@ -133,6 +140,12 @@ $this->params['breadcrumbs'][] = $this->title;
 		$req = json_decode($json_req, true);
 
 		VarDumper::dump($req, 10, true);
+        echo '<br>--------------------------------------<br>';
+		$mgr->mapCLQLRec($query_resp);
+        echo '<br>--------------------------------------<br>';
+		VarDumper::dump($mgr->getRespData());
+        echo '<br>--------------------------------------<br>';
+		echo json_encode($mgr->getRespData());
 
      ?>
     </br>

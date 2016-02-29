@@ -11,6 +11,11 @@ use common\helpers\MsgList;
 
 class CLQLReqMgr {
 
+	private $CLQL_req;			// holds decoded JSON as PHP Array
+	private $CLQL_req_valid;	// holds state of validity of $req
+	private $CLQL_resp;			// holds mapped response records (array or recs)
+	private $CLQL_resp_valid;	// holds state of response
+
 	private $error_stack;
 	private $debug_stack;
 	private $plan_stack;
@@ -18,7 +23,7 @@ class CLQLReqMgr {
 	private $debug_enabled;
 	private $verbose_enabled;
 	private $plan_enabled;
-	private $field_list;
+	private $unique_field_list;
 
 	private static $error_str_table = [
 		CLQL_STATUS_OK => 'OK',
@@ -42,7 +47,7 @@ class CLQLReqMgr {
 		CLQL_STATUS_INVALID_CONSTRAINT_SECTION => 'Invalid Constraint Section',
 		CLQL_STATUS_INVALID_SCORE_SECTION => 'Invalid Score Section',
 		CLQL_STATUS_INVALID_FETCH_SECTION  => 'Invalid Fetch Section',
-		CLQL_STATUS_INVALID_REQUESTING_SECTION => 'Invalid System Section',
+		CLQL_STATUS_INVALID_REQUESTING_SECTION => 'Invalid Requesting Section',
 
 		CLQL_STATUS_ERROR_BOOL_EXPECTED => 'Boolean Value Expected',
 		CLQL_STATUS_ERROR_INT_EXPECTED => 'Integer Value Expected',
@@ -58,6 +63,8 @@ class CLQLReqMgr {
 		CLQL_STATUS_MISSING_RANGE => 'Missing or Empty Range Specifier, Must Have `from` or `to`',
 		CLQL_STATUS_DUPE_CONSTRAINT_FIELD => 'Duplicate Constraint Field Encountered',
 		CLQL_STATUS_DUPE_REQUESTING_FIELD => 'Duplicate Requesting Field Encountered',
+		CLQL_STATUS_ERROR_NO_VALID_REQUEST => 'No Valid Request to Process, Error on Response Construction',
+		CLQL_STATUS_INVALID_DATA_RESPONSE => 'Invalid Data Response (from Query System)',
 
 		CLQL_STATUS_OZOB_ERROR => 'OZOB ERROR, FATAL'
 	];
@@ -97,10 +104,15 @@ class CLQLReqMgr {
 
     public function __construct($force_dbg = self::FORCE_DEFAULT_DEBUG)
     {
+		$this->CLQL_req = [];
+		$this->CLQL_req_valid = false;
+		$this->CLQL_resp = [];
+		$this->CLQL_resp_valid = false;
+
 		$this->error_stack = new MsgList();
 		$this->debug_stack = new MsgList();
 		$this->plan_stack = new MsgList();
-		$this->field_list = [];
+		$this->unique_field_list = [];
 
 		$this->debug_enabled = self::DEFAULT_DEBUG;
 		$this->force_debug = $force_dbg;
@@ -271,7 +283,7 @@ class CLQLReqMgr {
 
 	public function getRequestingFields()
 	{
-		return $this->field_list;
+		return $this->unique_field_list;
 	}
 
 	/**
@@ -290,6 +302,11 @@ class CLQLReqMgr {
 			return self::$fld_tbl[$clql_field_name];
 
 		return NULL;
+	}
+
+	public function getRespData()
+	{
+		return $this->CLQL_resp;
 	}
 
 	/**
@@ -878,7 +895,7 @@ class CLQLReqMgr {
 	 *
 	 */
 
-	public function recurseRequestingSection($section, &$fields, &$status)
+	private function recurseRequestingSection($section, &$fields, &$status)
 	{
 		static $recurse_cnt = 0;
 
@@ -932,7 +949,7 @@ class CLQLReqMgr {
 	 *
 	 * This generates an error and debug data in respective objects.
 	 *
-	 * Note : This mutates the field_list member var. After this call it will have a list
+	 * Note : This mutates the $unique_field_list member var. After this call it will have a list
 	 * of UNIQUE field names in it. This DOES NOT RESET THE $field_list array, that's up to you
 	 * if you need it clean. Since this is really a list of unique fields, it's all good.
 	 */
@@ -954,7 +971,7 @@ class CLQLReqMgr {
 
 		// caution as the name suggessts 'recursion', $this->field list set to [] in the constructor.
 
-		$this->recurseRequestingSection($section, $this->field_list, $status);
+		$this->recurseRequestingSection($section, $this->unique_field_list, $status);
 
 		if($status !== CLQL_STATUS_OK)
 		{
@@ -964,7 +981,7 @@ class CLQLReqMgr {
 
 		// now validate each F'n field in the list (remeber it's unique)
 
-		foreach($this->field_list as $value)
+		foreach($this->unique_field_list as $value)
 		{
 			if($this->getCLQLFldData($value) === NULL)
 			{
@@ -994,22 +1011,24 @@ class CLQLReqMgr {
 	{
 		$this->pushDebugStr(__METHOD__, 0);
 
-		$req = json_decode($clql_json_str, true);
+		$this->CLQL_req_valid = false;
 
-		if($req === NULL)
+		$this->CLQL_req = json_decode($clql_json_str, true);
+
+		if($this->CLQL_req === NULL)
 		{
 			$this->pushErrorStr('-->`'. json_last_error_msg() .'`');
 			$this->pushErrorId(CLQL_STATUS_MAL_FORMED_JSON);
 			return false;
 		}
 
-		if(empty($req))
+		if(empty($this->CLQL_req))
 		{
 			$this->pushErrorId(CLQL_STATUS_MISSING_SECTION);  // well no sections!
 			return false;
 		}
 
-		$section_cnt = count($req);
+		$section_cnt = count($this->CLQL_req);
 
 		// can't have more then 5 section and MUST have at least 2 or doesnt make sense
 
@@ -1022,9 +1041,9 @@ class CLQLReqMgr {
 		// pull the system section first as we may want to affect other stuff so
 		// ensure these get loaded FIRST no matter where it is in the JSON struct
 
-		if(isset($req[CLQL_SECTION_SYSTEM]))
+		if(isset($this->CLQL_req[CLQL_SECTION_SYSTEM]))
 		{
-			if(!$this->isValidSystemSection($req[CLQL_SECTION_SYSTEM]))   // can load system vars
+			if(!$this->isValidSystemSection($this->CLQL_req[CLQL_SECTION_SYSTEM]))   // can load system vars
 			{
 				$this->pushDebugStr(__METHOD__);
 				$this->pushErrorId(CLQL_STATUS_INVALID_SYSTEM_SECTION);
@@ -1034,7 +1053,7 @@ class CLQLReqMgr {
 
 		// now loop the sections and check for invalid sections
 
-		foreach($req as $key => $value)
+		foreach($this->CLQL_req as $key => $value)
 		{
 			// maybe check if key is an array just for shagrins???
 
@@ -1081,7 +1100,127 @@ class CLQLReqMgr {
 					return false; // UNKNOW SECTION ERROR
 			}
 		}
+		$this->CLQL_req_valid = true;
 		return true;
 	}
+
+	//////////////////////////////////////////////////////////
+	/////////////////  Response Mapping  /////////////////////
+	//////////////////////////////////////////////////////////
+
+	private function recurseAndMapRequestingSection($data, &$output, &$status)
+	{
+		static $recurse_cnt = 0;
+
+		$this->pushDebugStr(__METHOD__, 2 + $recurse_cnt);
+
+		// bad status, bust out until done. Means also status must be init
+		// to CLQL_STATUS_OK on initial call if that's not obvious
+
+		if($status !== CLQL_STATUS_OK)
+		{
+			$recurse_cnt = 0;   // make sure!
+			return;
+		}
+
+		// roll through the Requesting section looking to nested structures
+		// and fields.
+
+		foreach($data as $key=>$value)
+		{
+			if(is_array($value))
+			{
+
+echo "<br>Dump of value - ";
+var_dump(key($value));
+echo "<br>";
+
+				//$skip_outer = array_shift($value);
+
+
+//echo "Field value : " . $data[$value] . "<br>";
+
+				if($recurse_cnt > CLQL_DEFAULT_NESTING_LEVEL)
+				{
+					 $status = CLQL_STATUS_ERROR_NESTING_TOO_DEEP;
+					 return;
+				}
+
+				$recurse_cnt++;
+				$this->recurseAndMapRequestingSection($key, $output, $status);
+				// $this->recurseRequestingSection($skip_outer, $fields, $status);
+				$recurse_cnt--;
+			}
+			else
+			{
+				// value is the field name we need to map here
+				// should only be mapping data for fields here
+				//$fields[$value] = $value;   // cheat, save as key and value to make fast unique
+
+				if(!empty($data[$value]))
+				{
+					$output[$value] = $data[$value];	// save as 'key => value'
+				}
+
+			}
+		}
+	}
+
+	public function mapCLQLRec($query_results)
+	{
+		$this->pushDebugStr(__METHOD__, 0);
+		$this->CLQL_resp_valid = true;
+
+		// If the requst is not valid, bounce them
+
+		if(!$this->CLQL_req_valid)
+		{
+			$this->pushErrorId(CLQL_STATUS_ERROR_NO_VALID_REQUEST);
+			return false;
+		}
+
+		if(!is_array($query_results))
+		{
+			// must be an array of records, if not error
+
+			$this->pushErrorId(CLQL_STATUS_INVALID_DATA_RESPONSE);
+			return false;
+		}
+
+		if(empty($query_results))
+		{
+			// do something if no data returned. Not sure if error or we return also an
+			// empty response to the caller.
+
+			// TODO
+		}
+
+		if(empty($this->CLQL_req[CLQL_SECTION_REQUESTING]))
+		{
+			$this->pushErrorId(CLQL_STATUS_INVALID_REQUESTING_SECTION);
+			return false;
+		}
+
+		// now iterate through the Requesting section, plucking each
+		// field from the data record. IF the requsting $field_name is
+		// an array this indicates that it's a SUB Structure. This needs to be handled
+		// a bit differently (ie, recurse). Their is NO implied order of returned data
+		// so don't expect it to be.
+
+		$status = CLQL_STATUS_OK;	// MUST start with this status
+
+		foreach($query_results as $query_rec)
+		{
+			$resp_rec = [];
+			$this->recurseAndMapRequestingSection($query_rec, $resp_rec, $status);
+
+			$this->CLQL_resp[] = $resp_rec;	// add records to list
+
+		}
+
+		$this->CLQL_resp_valid = true;
+		return true;
+	}
+
 }
 
