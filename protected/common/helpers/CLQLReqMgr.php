@@ -90,6 +90,8 @@ class CLQLReqMgr {
 		'envy' => ['envy', CLQL_SRC_COMPUTED, CLQL_NUMERIC_TYPE, CLQL_CONSTRAINT_RANGE_TYPE, '', [], true, true],
 		'headroom' => ['headroom', CLQL_SRC_FLAT_FILE, CLQL_NUMERIC_TYPE, CLQL_CONSTRAINT_RANGE_TYPE, '', [], true, false],
 		'bodyStyle' => ['body_style', CLQL_SRC_FLAT_FILE, CLQL_STRING_TYPE, CLQL_CONSTRAINT_LIST_TYPE, 'coupe', ['coupe' => 'cpe', 'convertible' => 'convert', 'suv'=>'suv', 'truck'=>'pickup'] , false, false],
+		'Quababble' => ['make_name', CLQL_SRC_FLAT_FILE, CLQL_STRING_TYPE, CLQL_CONSTRAINT_LIST_TYPE, '', [], true, false],
+
 	];
 
 	// local constants
@@ -304,9 +306,34 @@ class CLQLReqMgr {
 		return NULL;
 	}
 
+	/**
+	 * Returns the array of response data. Must have been processed
+	 * by mapCLQLRec() and have valid results or this will return an
+	 * empty array.
+	 *
+	 * @return array The array of records after mapping. Empty array if mapCLQLRec() failed or not called
+	 */
+
 	public function getRespData()
 	{
-		return $this->CLQL_resp;
+		if($this->CLQL_resp_valid)
+			return $this->CLQL_resp;
+		return [];
+	}
+
+	/**
+	 * Returns the array of response data. Must have been processed
+	 * by mapCLQLRec() and have valid results or this will return an
+	 * empty array.
+	 *
+	 * @return string The JSON conveted array of records. Empty string if mapCLQLRec() failed or not called
+	 */
+
+	public function getRespDataJSON()
+	{
+		if($this->CLQL_resp_valid)
+			return json_encode($this->CLQL_resp);	// add any flags to the encoding here
+		return "";
 	}
 
 	/**
@@ -1004,7 +1031,7 @@ class CLQLReqMgr {
 	 * are tracked for each call. It's up to the user to reset these prior to calling
 	 * if desired.
 	 *
-	 * @param string $clql_cson_str The CLQL strucure for the request, again note it's a string!
+	 * @param string $clql_json_str The CLQL strucure for the request, again note it's a string!
 	 */
 
 	public function validateCLQLRequest($clql_json_str)
@@ -1108,11 +1135,23 @@ class CLQLReqMgr {
 	/////////////////  Response Mapping  /////////////////////
 	//////////////////////////////////////////////////////////
 
-	private function recurseAndMapRequestingSection($data, &$output, &$status)
+	/**
+	 * This function will take the Requesting section (or parts of it) and map incoming data
+	 * to the output array. The incoming $data is really a single record of query data that is
+	 * processed against the Requesting section format.
+	 *
+	 * @param array $section The Requesting section array that is being processed. It will recurse this and
+	 * treat any sub-section as a new sub-structure.
+	 * @param array $data The query data to be mapped. This is a flat name=>value mapping.
+	 * @param array &$output The entire record mapped (including sub-structures)
+	 * @param int &$status passed in status with a start of CLQL_STATUS_OK on initial call. Used to short circuit recursion on error.
+	 */
+
+	private function recurseMapRequestingSection($section, $data, &$output, &$status)
 	{
 		static $recurse_cnt = 0;
 
-		$this->pushDebugStr(__METHOD__, 2 + $recurse_cnt);
+		$this->pushDebugStr(__METHOD__, 1 + $recurse_cnt);
 
 		// bad status, bust out until done. Means also status must be init
 		// to CLQL_STATUS_OK on initial call if that's not obvious
@@ -1126,19 +1165,20 @@ class CLQLReqMgr {
 		// roll through the Requesting section looking to nested structures
 		// and fields.
 
-		foreach($data as $key=>$value)
+		foreach($section as $key=>$value)
 		{
 			if(is_array($value))
 			{
+				// create a sub element named as found
 
-echo "<br>Dump of value - ";
-var_dump(key($value));
-echo "<br>";
+				$nest_name = key($value);
+				$output[$nest_name] =  [];
 
-				//$skip_outer = array_shift($value);
+				// need to skip outer array to get name
 
+				$skip_outer = array_shift($value);
 
-//echo "Field value : " . $data[$value] . "<br>";
+				// paranoid check, should not be here if this is the case
 
 				if($recurse_cnt > CLQL_DEFAULT_NESTING_LEVEL)
 				{
@@ -1147,8 +1187,7 @@ echo "<br>";
 				}
 
 				$recurse_cnt++;
-				$this->recurseAndMapRequestingSection($key, $output, $status);
-				// $this->recurseRequestingSection($skip_outer, $fields, $status);
+				$this->recurseMapRequestingSection($skip_outer, $data, $output[$nest_name], $status);
 				$recurse_cnt--;
 			}
 			else
@@ -1161,15 +1200,24 @@ echo "<br>";
 				{
 					$output[$value] = $data[$value];	// save as 'key => value'
 				}
-
 			}
 		}
 	}
 
+	/**
+	 * Will map a result set to the data format that is specified in the Resulting
+	 * section. The mapping will omit any fields that are NOT found in the $query_results
+	 * array. This must only be called if a validateCLQLRequest() has been done, and will
+	 * check that the results that call were valid.
+	 *
+	 * @param $array $query_results An array of records as provided by the query system. The
+	 * array is a record with each element as a key=>value pair.
+	 */
+
 	public function mapCLQLRec($query_results)
 	{
 		$this->pushDebugStr(__METHOD__, 0);
-		$this->CLQL_resp_valid = true;
+		$this->CLQL_resp_valid = false;
 
 		// If the requst is not valid, bounce them
 
@@ -1187,13 +1235,18 @@ echo "<br>";
 			return false;
 		}
 
+		// if Query data is empty, just do a quick about-face and exit
+
 		if(empty($query_results))
 		{
-			// do something if no data returned. Not sure if error or we return also an
-			// empty response to the caller.
-
-			// TODO
+			$this->CLQL_resp = [];	// return empty
+			$this->CLQL_resp_valid = true;
+			return true;
 		}
+
+		// if the requesting section is empty, bomb. Paranoid check
+		// this might be relaxed to just return a flat record of all
+		// fields in the query set, but only later if needed
 
 		if(empty($this->CLQL_req[CLQL_SECTION_REQUESTING]))
 		{
@@ -1201,26 +1254,29 @@ echo "<br>";
 			return false;
 		}
 
-		// now iterate through the Requesting section, plucking each
-		// field from the data record. IF the requsting $field_name is
-		// an array this indicates that it's a SUB Structure. This needs to be handled
-		// a bit differently (ie, recurse). Their is NO implied order of returned data
-		// so don't expect it to be.
+		// recurse through the requesting section. If a nested struct is
+		// found the recurseMapRestionSection() will handle it and
+		// create the sub-element correctly. We are adding record by record here.
 
 		$status = CLQL_STATUS_OK;	// MUST start with this status
 
 		foreach($query_results as $query_rec)
 		{
 			$resp_rec = [];
-			$this->recurseAndMapRequestingSection($query_rec, $resp_rec, $status);
+			$this->recurseMapRequestingSection($this->CLQL_req[CLQL_SECTION_REQUESTING], $query_rec, $resp_rec, $status);
+			$this->CLQL_resp[] = $resp_rec;	// Add record to list
 
-			$this->CLQL_resp[] = $resp_rec;	// add records to list
+			// if something went haywire in the recursion bomb
 
+			if($status !== CLQL_STATUS_OK)
+			{
+				$this->pushErrorId($status);
+				return false;
+			}
 		}
 
 		$this->CLQL_resp_valid = true;
 		return true;
 	}
-
 }
 

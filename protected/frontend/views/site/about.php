@@ -12,7 +12,7 @@ use common\helpers\CLQLReqMgr;
 $query_resp = [
 
 	['id' => 123, 'name' =>'Test1', 'mpg' => 12.1, 'horsepower' => 123, 'imgPath' => 'http://x/image1.com',  'overallScore' => 5.5, 'safety' => 4, 'reliability' => 5, 'utility' => 2, 'headroom' => 44.5, 'envy'=> 2.4],
-//	['id' => 2469, 'name' =>'Test2', 'mpg' => 10.9, 'horsepower' => 145,  'imgPath' => 'http://y/image1.com',  'overallScore' => 9.4, 'safety' => 4, 'reliability' => 5, 'utility' => 2, 'headroom' => 44.5, 'envy'=> 2.4],
+	['id' => 2469, 'name' =>'Test2', 'mpg' => 10.9, 'horsepower' => 145,  'imgPath' => 'http://y/image1.com',  'overallScore' => 9.4, 'safety' => 5, 'reliability' => 4, 'utility' => 4, 'headroom' => 34.5, 'envy'=> 5.0],
 ];
 
 $json_req = '{
@@ -85,7 +85,8 @@ $json_req = '{
             {
                 "user_specified_2_1_1": [
                   "headroom",
-                  "utility"
+                  "utility",
+                  "Quababble"
                 ]
             }
           ]
@@ -95,10 +96,23 @@ $json_req = '{
             "headroom",
             "safety"
           ]
+        },
+        {
+          "user_specified_2_3": [
+            "Quababble"
+          ]
         }
+
 
       ]
     },
+
+    {
+      "user_specified_3": [
+        "Quababble"
+        ]
+    },
+
     "horsepower"
   ]
 }';
@@ -125,11 +139,6 @@ $this->params['breadcrumbs'][] = $this->title;
 
 		echo 'Error Count : ' . $mgr->getErrorCnt();
 		echo '<br>Error String -<br>' . $mgr->getErrorString('<br>');
-
-        echo '--------------------------------------<br>';
-		echo 'Debug Count : ' . $mgr->getDebugCnt();
-		//getDebugString($line_sep = "\n", $output_order = MsgList::NEW_FIRST, $line_numbers = true)
-		echo '<br>Debug String -<br>' . $mgr->getDebugString('<br>', MsgList::OLD_FIRST);
         echo '--------------------------------------<br>';
         echo 'Requested Fields -<br>';
 		foreach($mgr->getRequestingFields() as $fld_name)
@@ -138,14 +147,23 @@ $this->params['breadcrumbs'][] = $this->title;
         echo '--------------------------------------<br>';
 
 		$req = json_decode($json_req, true);
-
 		VarDumper::dump($req, 10, true);
         echo '<br>--------------------------------------<br>';
+
 		$mgr->mapCLQLRec($query_resp);
         echo '<br>--------------------------------------<br>';
-		VarDumper::dump($mgr->getRespData());
+
+		VarDumper::dump($mgr->getRespData(), 10, true);
         echo '<br>--------------------------------------<br>';
-		echo json_encode($mgr->getRespData());
+
+		$j = $mgr->getRespDataJSON();
+		echo $j;
+        echo '<br>--------------------------------------<br>';
+
+		echo 'Debug Count : ' . $mgr->getDebugCnt();
+		echo '<br>Debug String -<br>' . $mgr->getDebugString('<br>', MsgList::OLD_FIRST);
+        echo '<br>--------------------------------------<br>';
+
 
      ?>
     </br>
