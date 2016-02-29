@@ -149,7 +149,9 @@ class MsgList
     }
 
     /**
-    * Converts a stack into a flat string
+    * Converts a stack into a flat string. Looks at class vars $line_numbers, and
+    * $line_sep for formatting. Then for ordering it looks at $output_order which
+    * determins newest or oldest first.
     *
     * @return  string The list created as a string
     */
