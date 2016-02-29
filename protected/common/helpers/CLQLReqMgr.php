@@ -337,6 +337,96 @@ class CLQLReqMgr {
 	}
 
 	/**
+	 * Helper to get the System section. If not set, not found, invalid then
+	 * will return empty array. This implies that validateCLQLRequest() has been called.
+	 *
+	 * @return array The sections data that is being requested
+	 */
+
+	public function getSystemSection()
+	{
+		if($this->CLQL_req_valid)
+		{
+			if(isset($this->CLQL_req[CLQL_SECTION_SYSTEM]))
+				return $this->CLQL_req[CLQL_SECTION_SYSTEM];
+		}
+
+		return [];
+	}
+
+	/**
+	 * Helper to get the Constraints section. If not set, not found, invalid then
+	 * will return empty array. This implies that validateCLQLRequest() has been called.
+	 *
+	 * @return array The sections data that is being requested
+	 */
+
+	public function getConstraintsSection()
+	{
+		if($this->CLQL_req_valid)
+		{
+			if(isset($this->CLQL_req[CLQL_SECTION_CONSTRAINTS]))
+				return $this->CLQL_req[CLQL_SECTION_CONSTRAINTS];
+		}
+
+		return [];
+	}
+
+	/**
+	 * Helper to get the Score section. If not set, not found, invalid then
+	 * will return empty array. This implies that validateCLQLRequest() has been called.
+	 *
+	 * @return array The sections data that is being requested
+	 */
+
+	public function getScoreSection()
+	{
+		if($this->CLQL_req_valid)
+		{
+			if(isset($this->CLQL_req[CLQL_SECTION_SCORE]))
+				return $this->CLQL_req[CLQL_SECTION_SCORE];
+		}
+
+		return [];
+	}
+
+	/**
+	 * Helper to get the Constraints section. If not set, not found, invalid then
+	 * will return empty array. This implies that validateCLQLRequest() has been called.
+	 *
+	 * @return array The sections data that is being requested
+	 */
+
+	public function getFetchSection()
+	{
+		if($this->CLQL_req_valid)
+		{
+			if(isset($this->CLQL_req[CLQL_SECTION_FETCH]))
+				return $this->CLQL_req[CLQL_SECTION_FETCH];
+		}
+
+		return [];
+	}
+
+	/**
+	 * Helper to get the Requesting section. If not set, not found, invalid then
+	 * will return empty array. This implies that validateCLQLRequest() has been called.
+	 *
+	 * @return array The sections data that is being requested
+	 */
+
+	public function getRequestingSection()
+	{
+		if($this->CLQL_req_valid)
+		{
+			if(isset($this->CLQL_req[CLQL_SECTION_REQUESTING]))
+				return $this->CLQL_req[CLQL_SECTION_REQUESTING];
+		}
+
+		return [];
+	}
+
+	/**
 	 * Wrappers record accessors. May be overkill, but aids in debug
 	 */
 
@@ -1210,7 +1300,7 @@ class CLQLReqMgr {
 	 * array. This must only be called if a validateCLQLRequest() has been done, and will
 	 * check that the results that call were valid.
 	 *
-	 * @param $array $query_results An array of records as provided by the query system. The
+	 * @param array $query_results An array of records as provided by the query system. The
 	 * array is a record with each element as a key=>value pair.
 	 */
 
@@ -1266,7 +1356,7 @@ class CLQLReqMgr {
 			$this->recurseMapRequestingSection($this->CLQL_req[CLQL_SECTION_REQUESTING], $query_rec, $resp_rec, $status);
 			$this->CLQL_resp[] = $resp_rec;	// Add record to list
 
-			// if something went haywire in the recursion bomb
+			// if something went haywire in the recursion, cut the story short
 
 			if($status !== CLQL_STATUS_OK)
 			{
