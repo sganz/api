@@ -130,6 +130,7 @@ class CLQLReqMgr {
 		$this->plan_enabled = CLQL_DEFAULT_PLAN;
 
 		// build the mapping table for internal (db, computed, etc) name to external (user specified)
+		// these are just subsets and flipped fld_tbl
 
 		foreach(self::$fld_tbl as $name => $value)
 		{
@@ -1267,6 +1268,8 @@ class CLQLReqMgr {
 		$this->pushDebugStr(__METHOD__, 0);
 
 		$this->CLQL_req_valid = false;
+		$found_constraint = false;
+		$found_requesting = false;
 
 		$this->CLQL_req = json_decode($clql_json_str, true);
 
@@ -1285,9 +1288,9 @@ class CLQLReqMgr {
 
 		$section_cnt = count($this->CLQL_req);
 
-		// can't have more then 5 section and MUST have at least 2 or doesnt make sense
+		// can't have more then 5 section and MUST have at least 3 (system, constraints, requesting) or doesnt make sense
 
-		if(($section_cnt > 5) || ($section_cnt < 2))
+		if(($section_cnt > 5) || ($section_cnt < 3))
 		{
 			$this->pushErrorId(CLQL_STATUS_INVALID_SECTION);
 			return false;
@@ -1325,6 +1328,7 @@ class CLQLReqMgr {
 						$this->pushErrorId(CLQL_STATUS_INVALID_CONSTRAINT_SECTION);
 						return false;
 					}
+					$found_constraint = true;
 					break;
 
 				case CLQL_SECTION_SCORE:
@@ -1349,6 +1353,8 @@ class CLQLReqMgr {
 						$this->pushErrorId(CLQL_STATUS_INVALID_REQUESTING_SECTION);
 						return false; // invalid system section
 					}
+
+					$found_requesting = true;
 					break;
 
 				default:
@@ -1357,8 +1363,18 @@ class CLQLReqMgr {
 					return false; // UNKNOW SECTION ERROR
 			}
 		}
-		$this->CLQL_req_valid = true;
-		return true;
+
+		if($found_constraint && $found_requesting)
+		{
+			$this->CLQL_req_valid = true;
+			return true;
+		}
+		else
+		{
+			$this->pushErrorStr('--> Missing Constraint or Requesting Section');
+			$this->pushErrorId(CLQL_STATUS_MISSING_SECTION);
+			return false;
+		}
 	}
 
 	//////////////////////////////////////////////////////////
