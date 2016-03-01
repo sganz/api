@@ -17,7 +17,8 @@ $query_resp = [
 
 $json_req = '{
 	"system" : {
-		"_debug"	: false
+		"_debug"	: false,
+		"userToken" : "1f3870be274f6c49b3e31a0c6728957f"
 	},
 
     "constraints": {
@@ -146,6 +147,23 @@ $this->params['breadcrumbs'][] = $this->title;
 
         echo '--------------------------------------<br>';
 
+		var_dump($mgr->getConstraintsSection());
+        echo '<br>--------------------------------------<br>';
+		var_dump($mgr->getFetchSection());
+        echo '<br>--------------------------------------<br>';
+		var_dump($mgr->getScoreSection());
+        echo '<br>--------------------------------------<br>';
+		echo 'Map External Field To Internal (id)      : ' . $mgr->mapExternalFldToInternal('id') . '<br>';
+		echo 'Map Internal Field To External (trim_id) : ' . $mgr->mapInternalFldToExternal('trim_id') . '<br>';
+		echo 'Map Internal Field To External (INVALID) : ' . $mgr->mapInternalFldToExternal('XXXX') . '<br>';
+		echo 'Map External Field To Internal (INVALID) : ' . $mgr->mapExternalFldToInternal('YYYYY') . '<br>';
+        echo '<br>--------------------------------------<br>';
+		VarDumper::dump($mgr->getInternalFieldMap(), 10, true);
+        echo '<br>--------------------------------------<br>';
+		VarDumper::dump($mgr->getExternalFieldMap(), 10, true);
+        echo '<br>--------------------------------------<br>';
+        echo 'User Token : ' . $mgr->getUserToken();
+        echo '<br>--------------------------------------<br>';
 		$req = json_decode($json_req, true);
 		VarDumper::dump($req, 10, true);
         echo '<br>--------------------------------------<br>';
@@ -163,7 +181,7 @@ $this->params['breadcrumbs'][] = $this->title;
 		echo 'Debug Count : ' . $mgr->getDebugCnt();
 		echo '<br>Debug String -<br>' . $mgr->getDebugString('<br>', MsgList::OLD_FIRST);
         echo '<br>--------------------------------------<br>';
-
+		VarDumper::dump($query_resp, 10, true);
 
      ?>
     </br>

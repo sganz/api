@@ -41,9 +41,11 @@ const CLQL_STATUS_ERROR_CORRUPT_CONSTRAINT_LIST = 31;
 const CLQL_STATUS_MISSING_RANGE = 32;
 const CLQL_STATUS_DUPE_CONSTRAINT_FIELD = 33;
 const CLQL_STATUS_DUPE_REQUESTING_FIELD = 34;
-
 const CLQL_STATUS_ERROR_NO_VALID_REQUEST = 35;
 const CLQL_STATUS_INVALID_DATA_RESPONSE = 36;
+const CLQL_STATUS_INVALID_ENGINE_QUERY = 37;
+const CLQL_STATUS_INVALID_USER_TOKEN = 38;
+const CLQL_STATUS_INVALID_USER_TOKEN_FORMAT = 39;
 
 const CLQL_STATUS_OZOB_ERROR = 99999;
 
@@ -88,6 +90,7 @@ const CLQL_SECTION_REQUESTING = 'requesting';
 const CLQL_SYSTEM_VERBOSE = '_verbose';
 const CLQL_SYSTEM_PLAN = '_plan';
 const CLQL_SYSTEM_DEBUG = '_debug';
+const CLQL_SYSTEM_USER_TOKEN = 'userToken';
 
 // fetch section defined fixed elements/fields (all optional)
 const CLQL_FETCH_SORT = 'sort';
@@ -104,4 +107,3 @@ const CLQL_DEFAULT_SORT = 'overall_score';  // not sure how to represent this...
 const CLQL_DEFAULT_NESTING_LEVEL = 5;       // max number of nested structures
 const CLQL_DEFAULT_MAX_REQUEST_FIELDS = 50; // total number (including nested structures)
 const CLQL_DEFAULT_MAX_CONSTRAINT_LIST_LEN = 20;    // max length of list type of data
-

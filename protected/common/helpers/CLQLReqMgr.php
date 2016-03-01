@@ -24,6 +24,10 @@ class CLQLReqMgr {
 	private $verbose_enabled;
 	private $plan_enabled;
 	private $unique_field_list;
+	private $user_token; 			// a string
+
+	private $intern_to_extern_map;	// Map internal field names (db, computed, etc) to user (external) field names
+	private $extern_to_intern_map;	// Map external field names (user) to internal (db, computed, etc)
 
 	private static $error_str_table = [
 		CLQL_STATUS_OK => 'OK',
@@ -65,6 +69,9 @@ class CLQLReqMgr {
 		CLQL_STATUS_DUPE_REQUESTING_FIELD => 'Duplicate Requesting Field Encountered',
 		CLQL_STATUS_ERROR_NO_VALID_REQUEST => 'No Valid Request to Process, Error on Response Construction',
 		CLQL_STATUS_INVALID_DATA_RESPONSE => 'Invalid Data Response (from Query System)',
+		CLQL_STATUS_INVALID_ENGINE_QUERY => 'Query Engine Reports Invalid Query',
+		CLQL_STATUS_INVALID_USER_TOKEN => 'Invalid User Token',
+		CLQL_STATUS_INVALID_USER_TOKEN_FORMAT => 'Invalid User Token Format',
 
 		CLQL_STATUS_OZOB_ERROR => 'OZOB ERROR, FATAL'
 	];
@@ -72,6 +79,7 @@ class CLQLReqMgr {
 	static private $fld_tbl = [
 	// Data is mapped like this. Using offset for now, may later use a map...
 	// 'CLQL_NAME' => [CLQL_SRC_FLD_NAME, CLQL_SOURCE, CLQL_TYPE, CLQL_CONSTRAINT_TYPE, CLQL_DEFAULT, CLQL_VALID_ELEMENTS, CLQL_SORTABLE, CLQL_SCOREABLE],
+
 
 		'id' => ['trim_id', CLQL_SRC_FLAT_FILE, CLQL_INT_TYPE, CLQL_CONSTRAINT_LIST_TYPE, '', [], false, false],
 		'make' => ['make_name', CLQL_SRC_FLAT_FILE, CLQL_STRING_TYPE, CLQL_CONSTRAINT_LIST_TYPE, '', [], true, false],
@@ -90,8 +98,7 @@ class CLQLReqMgr {
 		'envy' => ['envy', CLQL_SRC_COMPUTED, CLQL_NUMERIC_TYPE, CLQL_CONSTRAINT_RANGE_TYPE, '', [], true, true],
 		'headroom' => ['headroom', CLQL_SRC_FLAT_FILE, CLQL_NUMERIC_TYPE, CLQL_CONSTRAINT_RANGE_TYPE, '', [], true, false],
 		'bodyStyle' => ['body_style', CLQL_SRC_FLAT_FILE, CLQL_STRING_TYPE, CLQL_CONSTRAINT_LIST_TYPE, 'coupe', ['coupe' => 'cpe', 'convertible' => 'convert', 'suv'=>'suv', 'truck'=>'pickup'] , false, false],
-		'Quababble' => ['make_name', CLQL_SRC_FLAT_FILE, CLQL_STRING_TYPE, CLQL_CONSTRAINT_LIST_TYPE, '', [], true, false],
-
+		'Quababble' => ['make_name', CLQL_SRC_FLAT_FILE, CLQL_STRING_TYPE, CLQL_CONSTRAINT_LIST_TYPE, 'N/A', [], true, false],
 	];
 
 	// local constants
@@ -115,11 +122,20 @@ class CLQLReqMgr {
 		$this->debug_stack = new MsgList();
 		$this->plan_stack = new MsgList();
 		$this->unique_field_list = [];
+		$this->user_token = '';
 
 		$this->debug_enabled = self::DEFAULT_DEBUG;
 		$this->force_debug = $force_dbg;
 		$this->verbose_enabled = CLQL_DEFAULT_VERBOSE;
 		$this->plan_enabled = CLQL_DEFAULT_PLAN;
+
+		// build the mapping table for internal (db, computed, etc) name to external (user specified)
+
+		foreach(self::$fld_tbl as $name => $value)
+		{
+			$this->intern_to_extern_map[$value[CLQL_SRC_FLD_NAME]] = ['external_name' => $name, 'data_src' => $value[CLQL_SOURCE]];	// flip table, and
+			$this->extern_to_intern_map[$name] = $value[CLQL_SRC_FLD_NAME];
+		}
     }
 
 	/**
@@ -333,7 +349,22 @@ class CLQLReqMgr {
 	{
 		if($this->CLQL_resp_valid)
 			return json_encode($this->CLQL_resp);	// add any flags to the encoding here
-		return "";
+		return '';
+	}
+
+	/**
+	 * This returns the user token from the request. If the request is invalid or
+	 * for some reast the user token is empty, this returns false, otherwise the token.
+	 *
+	 * @return mixed Returns the user token string if a valid request, otherwise FALSE
+	 */
+
+	public function getUserToken()
+	{
+		if(!$this->CLQL_req_valid || empty($this->user_token))
+			return false;
+
+		return $this->user_token;
 	}
 
 	/**
@@ -477,6 +508,31 @@ class CLQLReqMgr {
 	}
 
 	/**
+	 * Gets the CLQL Default value by field name. If not field found or
+	 * an empty string is specified ('') for the default value then
+	 * the field will be treated as NOT having a default value
+	 *
+	 * @param string $fld The field name of interest
+	 *
+	 * @return mixed Returns FALSE if no field match or field has an empty() value, otherwise the string
+	 */
+
+	public function getCLQLDefaultValue($fld)
+	{
+		$this->pushDebugStr(__METHOD__, 2);
+
+		if(($rec = $this->getCLQLFldData($fld)) !== NULL)
+		{
+			$default_val = $this->getCLQLDefault($rec);
+
+			if(!empty($default_val))
+				return $default_val;
+		}
+
+		return false;
+	}
+
+	/**
 	 * Gets the CLQL Valid Elements, only call with VALID record
 	 *
 	 * @param array $clql_rec A record from the fld_tbl
@@ -593,6 +649,62 @@ class CLQLReqMgr {
 		return NULL;
 	}
 
+	//////////////////////////////////////////////////////////
+	/////////////// FIELD MAPPING HELPERS ////////////////////
+	//////////////////////////////////////////////////////////
+
+	/**
+	 * Returns the entire external (user) to internal mapping table.
+	 *
+	 * @return string simple map of external name to internal (string)
+	 */
+
+	public function getExternalFieldMap()
+	{
+		return $this->extern_to_intern_map;
+	}
+
+	/**
+	 * Returns the entire internal to external mapping table
+	 *
+	 * @return array simple map of internal to external [array of name and data source]
+	 */
+
+	public function getInternalFieldMap()
+	{
+		return $this->intern_to_extern_map;
+	}
+
+	/**
+	 * Maps the external (user) field to internal field name
+	 *
+	 * @param string $external_fld_name
+	 *
+	 * @return string The internal field name. If not found returns FALSE
+	 */
+
+	public function mapExternalFldToInternal($external_fld_name)
+	{
+		if(isset($this->extern_to_intern_map[$external_fld_name]))
+			return $this->extern_to_intern_map[$external_fld_name];
+		return false;
+	}
+
+	/**
+	 * Maps the internal field name to the external. Note this only
+	 * does the field mapping, it does not return the data source.
+	 *
+	 * @param string $intern_fld_name The internal field name (db, etc)
+	 *
+	 * @return string The external field name only. If not found returns FALSE
+	 */
+
+	public function mapInternalFldToExternal($internal_fld_name)
+	{
+		if(isset($this->intern_to_extern_map[$internal_fld_name]['external_name']))
+			return $this->intern_to_extern_map[$internal_fld_name]['external_name'];
+		return false;
+	}
 
 	//////////////////////////////////////////////////////////
 	///////////////// SECTION VALIDATION /////////////////////
@@ -611,11 +723,19 @@ class CLQLReqMgr {
 	 * 			system settings can be applied. The only tricky part is setting
 	 * 			the Debug state, which either must be done programatically or
 	 * 			this will not generate debug  info until the debug (or other flags) are set.
+	 *
+	 * Required System Data:
+	 *
+	 * 			A user_token MUST be present in the structure as a 32 character MD5 style Id.
+	 * 			Authentication is not done here, left to the caller to do something. This is not
+	 * 			really a way to do auth, but mainly tracking.
 	 */
 
 	public function isValidSystemSection($section)
 	{
 		$this->pushDebugStr(__METHOD__, 1);
+
+		$found_token = false;
 
 		if(count($section) == 0)
 		{
@@ -669,7 +789,19 @@ class CLQLReqMgr {
 					}
 
 					$this->debug_enabled = $value;	// set the debug_state
+					break;
 
+				case CLQL_SYSTEM_USER_TOKEN:
+					if(!is_string($value) || strlen($value) != 32)
+					{
+						$this->pushErrorStr('-->`'. $value .'` Bad Token Format');
+						$this->pushErrorId(CLQL_STATUS_ERROR_STRING_EXPECTED);
+						$this->pushErrorId(CLQL_STATUS_INVALID_USER_TOKEN_FORMAT);
+						return false;
+					}
+
+					$this->user_token = $value;		// set it!
+					$found_token = true;
 					break;
 
 				default:
@@ -679,7 +811,14 @@ class CLQLReqMgr {
 			}
 		}
 
-		return true;
+		if($found_token)
+			return true;
+		else
+		{
+			// if no token specified you need to bounce them
+			$this->pushErrorId(CLQL_STATUS_INVALID_USER_TOKEN);
+			return false;
+		}
 	}
 
 	/**
@@ -946,7 +1085,6 @@ class CLQLReqMgr {
 		return true;
 	}
 
-
 	/**
 	 * Validates the Score Section element
 	 *
@@ -1157,6 +1295,8 @@ class CLQLReqMgr {
 
 		// pull the system section first as we may want to affect other stuff so
 		// ensure these get loaded FIRST no matter where it is in the JSON struct
+		// A valid formatted user_token MUST be specified. This will NOT verify the token,
+		// just capture it.
 
 		if(isset($this->CLQL_req[CLQL_SECTION_SYSTEM]))
 		{
@@ -1293,6 +1433,13 @@ class CLQLReqMgr {
 				{
 					$output[$value] = $data[$value];	// save as 'key => value'
 				}
+				else
+				{
+					// see if in the default table
+
+					if(($default_val = $this->getCLQLDefaultValue($value)) !== false)
+						$output[$value] = $default_val;
+				}
 			}
 		}
 	}
@@ -1372,4 +1519,3 @@ class CLQLReqMgr {
 		return true;
 	}
 }
-
