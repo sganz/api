@@ -76,16 +76,56 @@ class CLQLReqMgr {
 		CLQL_STATUS_OZOB_ERROR => 'OZOB ERROR, FATAL'
 	];
 
-	static private $fld_tbl = [
+	private static $body_type_map = [
+		'car' => 'car',
+		'minivan' => 'minivan',
+		'suv' => 'suv',
+		'truck' => 'truck',
+		'van' => 'van',
+	];
+
+	private static $body_size_map = [
+		'compact' => 'compact',
+		'large' => 'large',
+		'midsize' => 'midsize',
+	];
+
+	private static $body_style_map = [
+		'2dr hatchback' => '2dr hatchback',
+		'2dr suv' => '2dr suv',
+		'4dr hatchback'=>'4dr hatchback',
+		'4dr suv' => '4dr suv',
+		'cargo minivan'=>'cargo minivan',
+		'cargo minivan'=>'cargo minivan',
+		'cargo van' => 'cargo van',
+		'convertible' => 'convertible',
+		'convertible suv' => 'convertible suv',
+		'coupe' => 'coupe',
+		'crew cab pickup' => 'crew cab pickup',
+		'extended cab pickup' => 'extended cab pickup',
+		'passenger minivan' => 'passenger minivan',
+		'passenger van' => 'passenger van',
+		'regular cab pickup' => 'regular cab pickup',
+		'sedan' => 'sedan',
+		'wagon' => 'wagon',
+	];
+
+	private static $fld_tbl = [
 	// Data is mapped like this. Using offset for now, may later use a map...
 	// 'CLQL_NAME' => [CLQL_SRC_FLD_NAME, CLQL_SOURCE, CLQL_TYPE, CLQL_CONSTRAINT_TYPE, CLQL_DEFAULT, CLQL_VALID_ELEMENTS, CLQL_SORTABLE, CLQL_SCOREABLE],
 
 
-		'id' => ['trim_id', CLQL_SRC_FLAT_FILE, CLQL_INT_TYPE, CLQL_CONSTRAINT_LIST_TYPE, '', [], false, false],
-		'make' => ['make_name', CLQL_SRC_FLAT_FILE, CLQL_STRING_TYPE, CLQL_CONSTRAINT_LIST_TYPE, '', [], true, false],
-		'model'=> ['model_name', CLQL_SRC_FLAT_FILE, CLQL_STRING_TYPE, CLQL_CONSTRAINT_LIST_TYPE, '', [], true, false],
-		'name' => ['full_name', CLQL_SRC_COMPUTED, CLQL_STRING_TYPE, CLQL_CONSTRAINT_INVALID, '', [], true, false],
-		'price' => ['list_price', CLQL_SRC_FLAT_FILE, CLQL_NUMERIC_TYPE, CLQL_CONSTRAINT_RANGE_TYPE, '', [], true, true],
+		'id' => ['style_id', CLQL_SRC_FLAT_FILE, CLQL_INT_TYPE, CLQL_CONSTRAINT_LIST_TYPE, '', [], false, false],
+
+		'make' 		=> ['make_name', CLQL_SRC_FLAT_FILE, CLQL_STRING_TYPE, CLQL_CONSTRAINT_LIST_TYPE, '', [], true, false],
+		'model'		=> ['model_name', CLQL_SRC_FLAT_FILE, CLQL_STRING_TYPE, CLQL_CONSTRAINT_LIST_TYPE, '', [], true, false],
+		'name' 		=> ['full_name', CLQL_SRC_COMPUTED, CLQL_STRING_TYPE, CLQL_CONSTRAINT_INVALID, '', [], true, false],
+		'price' 	=> ['price_invoice', CLQL_SRC_FLAT_FILE, CLQL_NUMERIC_TYPE, CLQL_CONSTRAINT_RANGE_TYPE, '', [], true, true],
+
+		'bodyType' => ['body_type', CLQL_SRC_FLAT_FILE, CLQL_STRING_TYPE, CLQL_CONSTRAINT_LIST_TYPE, '', [], false, false],
+		'bodySize' => ['body_size', CLQL_SRC_FLAT_FILE, CLQL_STRING_TYPE, CLQL_CONSTRAINT_LIST_TYPE, '', [], false, false],
+		'bodyStyle' => ['body_style', CLQL_SRC_FLAT_FILE, CLQL_STRING_TYPE, CLQL_CONSTRAINT_LIST_TYPE, '', [], false, false],
+
 		'mpg' => ['mpg', CLQL_SRC_FLAT_FILE, CLQL_INT_TYPE, CLQL_CONSTRAINT_RANGE_TYPE, '', [], true, false],
 		'weight' => ['gross_weight', CLQL_SRC_FLAT_FILE, CLQL_NUMERIC_TYPE, CLQL_CONSTRAINT_RANGE_TYPE, '', [], true, true],
 		'seats' => ['num_seats', CLQL_SRC_FLAT_FILE, CLQL_INT_TYPE, CLQL_CONSTRAINT_RANGE_TYPE, '', [], true, false],
@@ -97,7 +137,6 @@ class CLQLReqMgr {
 		'utility' => ['utility', CLQL_SRC_COMPUTED, CLQL_NUMERIC_TYPE, CLQL_CONSTRAINT_RANGE_TYPE, '', [], true, true],
 		'envy' => ['envy', CLQL_SRC_COMPUTED, CLQL_NUMERIC_TYPE, CLQL_CONSTRAINT_RANGE_TYPE, '', [], true, true],
 		'headroom' => ['headroom', CLQL_SRC_FLAT_FILE, CLQL_NUMERIC_TYPE, CLQL_CONSTRAINT_RANGE_TYPE, '', [], true, false],
-		'bodyStyle' => ['body_style', CLQL_SRC_FLAT_FILE, CLQL_STRING_TYPE, CLQL_CONSTRAINT_LIST_TYPE, 'coupe', ['coupe' => 'cpe', 'convertible' => 'convert', 'suv'=>'suv', 'truck'=>'pickup'] , false, false],
 		'Quababble' => ['make_name', CLQL_SRC_FLAT_FILE, CLQL_STRING_TYPE, CLQL_CONSTRAINT_LIST_TYPE, 'N/A', [], true, false],
 	];
 
@@ -137,6 +176,12 @@ class CLQLReqMgr {
 			$this->intern_to_extern_map[$value[CLQL_SRC_FLD_NAME]] = ['external_name' => $name, 'data_src' => $value[CLQL_SOURCE]];	// flip table, and
 			$this->extern_to_intern_map[$name] = $value[CLQL_SRC_FLD_NAME];
 		}
+
+		// now set up fld_tbl for any embedded statics
+
+		self::$fld_tbl['bodyStyle'][CLQL_VALID_ELEMENTS] = self::$body_style_map;
+		self::$fld_tbl['bodySize'][CLQL_VALID_ELEMENTS] = self::$body_size_map;
+		self::$fld_tbl['bodyType'][CLQL_VALID_ELEMENTS] = self::$body_type_map;
     }
 
 	/**
@@ -599,7 +644,6 @@ class CLQLReqMgr {
 		return $this->getCLQLSortable($rec);   // returns bool
 	}
 
-
 	/**
 	 * Scorable Check by Field Name
 	 *
@@ -655,6 +699,18 @@ class CLQLReqMgr {
 	//////////////////////////////////////////////////////////
 
 	/**
+	 * Helper to dump the field mapping/validation table
+	 *
+	 * @return array The array of records (with possible embedded arrays). See definition
+	 * for more information on the structure
+	 */
+
+	public function getFieldsTable()
+	{
+		return self::$fld_tbl;
+	}
+
+	/**
 	 * Returns the entire external (user) to internal mapping table.
 	 *
 	 * @return string simple map of external name to internal (string)
@@ -704,6 +760,51 @@ class CLQLReqMgr {
 	{
 		if(isset($this->intern_to_extern_map[$internal_fld_name]['external_name']))
 			return $this->intern_to_extern_map[$internal_fld_name]['external_name'];
+		return false;
+	}
+
+	/**
+	 * Gets the mapping of the users body type to internal body type
+	 *
+	 * @param string $body_type The user specified body type
+	 *
+	 * @return string Returns the name of the internally used body type or FALSE if not found
+	 */
+
+	public function mapExternalBodyType($body_type)
+	{
+		if(isset(self::$body_type_map[$body_type]))
+			return self::$body_type_map[$body_type];
+		return false;
+	}
+
+	/**
+	 * Gets the mapping of the users body size to internal body size
+	 *
+	 * @param string $body_size The user specified body size
+	 *
+	 * @return string Returns the name of the internally used body size or FALSE if not found
+	 */
+
+	public function mapExternalBodySize($body_size)
+	{
+		if(isset(self::$body_size_map[$body_size]))
+			return self::$body_size_map[$body_size];
+		return false;
+	}
+
+	/**
+	 * Gets the mapping of the users body style to internal body style
+	 *
+	 * @param string $body_style The user specified body style
+	 *
+	 * @return string Returns the name of the internally used body type or FALSE if not found
+	 */
+
+	public function mapExternalBodyStyle($body_style)
+	{
+		if(isset(self::$body_style_map[$body_style]))
+			return self::$body_style_map[$body_style];
 		return false;
 	}
 

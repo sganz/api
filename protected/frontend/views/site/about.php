@@ -28,7 +28,7 @@ $json_req = '{
 		},
 
 		"bodyStyle": [
-		  "suv", "truck"
+		  "4dr suv", "regular cab pickup"
 		],
 
 		"id" : [123, 24],
@@ -155,8 +155,6 @@ $this->params['breadcrumbs'][] = $this->title;
         echo '<br>--------------------------------------<br>';
 		echo 'Map External Field To Internal (id)      : ' . $mgr->mapExternalFldToInternal('id') . '<br>';
 		echo 'Map Internal Field To External (trim_id) : ' . $mgr->mapInternalFldToExternal('trim_id') . '<br>';
-		echo 'Map Internal Field To External (INVALID) : ' . $mgr->mapInternalFldToExternal('XXXX') . '<br>';
-		echo 'Map External Field To Internal (INVALID) : ' . $mgr->mapExternalFldToInternal('YYYYY') . '<br>';
         echo '<br>--------------------------------------<br>';
 		VarDumper::dump($mgr->getInternalFieldMap(), 10, true);
         echo '<br>--------------------------------------<br>';
