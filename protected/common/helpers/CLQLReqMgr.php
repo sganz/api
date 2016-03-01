@@ -1284,7 +1284,10 @@ class CLQLReqMgr {
 			{
 				// value is the field name we need to map here
 				// should only be mapping data for fields here
-				//$fields[$value] = $value;   // cheat, save as key and value to make fast unique
+				//
+				// NOTE : if the value for $data[$value] is empty it
+				// this is where the look up into the $fld_tbl to see if it has one.
+				// THIS IS A TBD if needed.
 
 				if(!empty($data[$value]))
 				{
