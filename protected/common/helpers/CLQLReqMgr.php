@@ -1306,7 +1306,7 @@ class CLQLReqMgr {
 	 *
 	 * This generates an error and debug data in respective objects.
 	 *
-	 * Note : This mutates the $unique_field_list member var. After this call it will have a list
+	 * Note : This mutates the $unique_field_list member var (clears on call). After this call it will have a list
 	 * of UNIQUE field names in it. This DOES NOT RESET THE $field_list array, that's up to you
 	 * if you need it clean. Since this is really a list of unique fields, it's all good.
 	 */
@@ -1317,7 +1317,6 @@ class CLQLReqMgr {
 
 		if(count($section) == 0)
 		{
-			$this->pushErrorId(CLQL_STATUS_INVALID_REQUEST_FIELD);
 			$this->pushErrorId(CLQL_STATUS_EMPTY_SECTION);
 			return false; // empty section
 		}
@@ -1325,6 +1324,8 @@ class CLQLReqMgr {
 		// flatten the section, can have multiple nesting
 
 		$status = CLQL_STATUS_OK;	// MUST start with this status
+
+		$this->unique_field_list = [];	// wipe it, should be empty unless you think otherwise?
 
 		// caution as the name suggessts 'recursion', $this->field list set to [] in the constructor.
 
@@ -1346,6 +1347,15 @@ class CLQLReqMgr {
 				$this->pushErrorId(CLQL_STATUS_INVALID_REQUESTING_FIELD);
 				return false;
 			}
+		}
+
+		// double check for shenaniganz' if the section has empty subelements
+		// this is still an empty section
+
+		if(count($this->unique_field_list) == 0)
+		{
+			$this->pushErrorId(CLQL_STATUS_EMPTY_SECTION);
+			return false; // still empty section
 		}
 
 		return true;
