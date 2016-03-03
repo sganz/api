@@ -11,8 +11,8 @@ use common\helpers\CLQLReqMgr;
 
 $query_resp = [
 
-	['id' => 123, 'name' =>'Test1', 'mpg' => 12.1, 'horsepower' => 123, 'imgPath' => 'http://x/image1.com',  'overallScore' => 5.5, 'safety' => 4, 'reliability' => 5, 'utility' => 2, 'headroom' => 44.5, 'envy'=> 2.4],
-	['id' => 2469, 'name' =>'Test2', 'mpg' => 10.9, 'horsepower' => 145,  'imgPath' => 'http://y/image1.com',  'overallScore' => 9.4, 'safety' => 5, 'reliability' => 4, 'utility' => 4, 'headroom' => 34.5, 'envy'=> 5.0],
+	['style_id' => 123, 'images'=>['front'=>'abc', 'rear'=>'def'], 'make_name' => 'ford', 'model_name' => 'mustang', 'full_name' =>'Ford Mustang', 'mpg' => 12.1, 'engine_horsepower' => 123,  'overall_score' => 5.5, 'safety' => 4, 'reliability' => 5, 'utility' => 2, 'headroom' => 44.5, 'envy'=> 2.4],
+	//['id' => 2469, 'name' =>'Test2', 'mpg' => 10.9, 'horsepower' => 145, 'overallScore' => 9.4, 'safety' => 5, 'reliability' => 4, 'utility' => 4, 'headroom' => 34.5, 'envy'=> 5.0],
 ];
 
 $json_req = '{
@@ -41,10 +41,6 @@ $json_req = '{
 
 		"seats": {
 		  "from": 6
-		},
-
-		"weight": {
-		  "to": 4000
 		}
   },
 
@@ -60,9 +56,11 @@ $json_req = '{
 
   "requesting": [
     "id",
+    "make",
+    "model",
     "name",
-    "mpg",
-    "imgPath",
+    "mpgCity",
+	"images",
     "overallScore",
 
     {
@@ -78,42 +76,11 @@ $json_req = '{
         "safety",
         "reliability",
         "utility",
-        "envy",
-        {
-          "user_specified_2_1": [
-            "headroom",
-            "utility",
-            {
-                "user_specified_2_1_1": [
-                  "headroom",
-                  "utility",
-                  "Quababble"
-                ]
-            }
-          ]
-        },
-        {
-          "user_specified_2_2": [
-            "headroom",
-            "safety"
-          ]
-        },
-        {
-          "user_specified_2_3": [
-            "Quababble"
-          ]
-        }
-
-
+        "envy"
       ]
     },
 
-    {
-      "user_specified_3": [
-        "Quababble"
-        ]
-    },
-
+    "horsepower",
     "horsepower"
   ]
 }';
@@ -144,14 +111,18 @@ $this->params['breadcrumbs'][] = $this->title;
         echo 'Requested Fields -<br>';
 		foreach($mgr->getRequestingFields() as $fld_name)
 			echo 'Field : ' . $fld_name . '<br>';
-
-        echo '--------------------------------------<br>';
-
-		var_dump($mgr->getConstraintsSection());
-        echo '<br>--------------------------------------<br>';
-		var_dump($mgr->getFetchSection());
-        echo '<br>--------------------------------------<br>';
-		var_dump($mgr->getScoreSection());
+        echo '<br>Dumping Constraints  -----------------<br>';
+		VarDumper::dump($mgr->getConstraintsSection(), 10, true);
+        echo '<br>Dumping Constraints  -----------------<br>';
+		VarDumper::dump($mgr->getInternalConstraintsSection(), 10, true);
+        echo '<br>Dumping Fetch-------------------------<br>';
+		VarDumper::dump($mgr->getFetchSection(), 10, true);
+        echo '<br>Dumping Internal Fetch----------------<br>';
+		VarDumper::dump($mgr->getInternalFetchSection(), 10, true);
+        echo '<br>Dumping Score-------------------------<br>';
+		VarDumper::dump($mgr->getScoreSection(), 10, true);
+        echo '<br>Dumping Internal Mapped Score---------<br>';
+		VarDumper::dump($mgr->getInternalScoreSection(), 10, true);
         echo '<br>--------------------------------------<br>';
 		echo 'Map External Field To Internal (id)      : ' . $mgr->mapExternalFldToInternal('id') . '<br>';
 		echo 'Map Internal Field To External (trim_id) : ' . $mgr->mapInternalFldToExternal('trim_id') . '<br>';
@@ -165,22 +136,14 @@ $this->params['breadcrumbs'][] = $this->title;
 		$req = json_decode($json_req, true);
 		VarDumper::dump($req, 10, true);
         echo '<br>--------------------------------------<br>';
-
 		$mgr->mapCLQLRec($query_resp);
-        echo '<br>--------------------------------------<br>';
-
+        echo '<br>Output PHP Response------------------<br>';
 		VarDumper::dump($mgr->getRespData(), 10, true);
-        echo '<br>--------------------------------------<br>';
-
+        echo '<br>Output JSON Response------------------<br>';
 		$j = $mgr->getRespDataJSON();
 		echo $j;
-        echo '<br>--------------------------------------<br>';
-
-		echo 'Debug Count : ' . $mgr->getDebugCnt();
-		echo '<br>Debug String -<br>' . $mgr->getDebugString('<br>', MsgList::OLD_FIRST);
-        echo '<br>--------------------------------------<br>';
+        echo '<br>Query Results-------------------------<br>';
 		VarDumper::dump($query_resp, 10, true);
-
      ?>
     </br>
     <code><?= __FILE__ ?></code>

@@ -10,6 +10,11 @@ use common\helpers\MsgList;
  */
 
 class CLQLReqMgr {
+	// local constants
+
+	const DEFAULT_PAD = '---*';
+	const DEFAULT_DEBUG = false;
+	const FORCE_DEFAULT_DEBUG = false;
 
 	private $CLQL_req;			// holds decoded JSON as PHP Array
 	private $CLQL_req_valid;	// holds state of validity of $req
@@ -114,7 +119,6 @@ class CLQLReqMgr {
 	// Data is mapped like this. Using offset for now, may later use a map...
 	// 'CLQL_NAME' => [CLQL_SRC_FLD_NAME, CLQL_SOURCE, CLQL_TYPE, CLQL_CONSTRAINT_TYPE, CLQL_DEFAULT, CLQL_VALID_ELEMENTS, CLQL_SORTABLE, CLQL_SCOREABLE],
 
-
 		'id' => ['style_id', CLQL_SRC_FLAT_FILE, CLQL_INT_TYPE, CLQL_CONSTRAINT_LIST_TYPE, '', [], false, false],
 
 		'make' 		=> ['make_name', CLQL_SRC_FLAT_FILE, CLQL_STRING_TYPE, CLQL_CONSTRAINT_LIST_TYPE, '', [], true, false],
@@ -122,29 +126,29 @@ class CLQLReqMgr {
 		'name' 		=> ['full_name', CLQL_SRC_COMPUTED, CLQL_STRING_TYPE, CLQL_CONSTRAINT_INVALID, '', [], true, false],
 		'price' 	=> ['price_invoice', CLQL_SRC_FLAT_FILE, CLQL_NUMERIC_TYPE, CLQL_CONSTRAINT_RANGE_TYPE, '', [], true, true],
 
-		'bodyType' => ['body_type', CLQL_SRC_FLAT_FILE, CLQL_STRING_TYPE, CLQL_CONSTRAINT_LIST_TYPE, '', [], false, false],
-		'bodySize' => ['body_size', CLQL_SRC_FLAT_FILE, CLQL_STRING_TYPE, CLQL_CONSTRAINT_LIST_TYPE, '', [], false, false],
+		'bodyType' 	=> ['body_type', CLQL_SRC_FLAT_FILE, CLQL_STRING_TYPE, CLQL_CONSTRAINT_LIST_TYPE, '', [], false, false],
+		'bodySize' 	=> ['body_size', CLQL_SRC_FLAT_FILE, CLQL_STRING_TYPE, CLQL_CONSTRAINT_LIST_TYPE, '', [], false, false],
 		'bodyStyle' => ['body_style', CLQL_SRC_FLAT_FILE, CLQL_STRING_TYPE, CLQL_CONSTRAINT_LIST_TYPE, '', [], false, false],
 
-		'mpg' => ['mpg', CLQL_SRC_FLAT_FILE, CLQL_INT_TYPE, CLQL_CONSTRAINT_RANGE_TYPE, '', [], true, false],
-		'weight' => ['gross_weight', CLQL_SRC_FLAT_FILE, CLQL_NUMERIC_TYPE, CLQL_CONSTRAINT_RANGE_TYPE, '', [], true, true],
+
+		'mpgCity' 		=> ['mpg_city', CLQL_SRC_FLAT_FILE, CLQL_INT_TYPE, CLQL_CONSTRAINT_RANGE_TYPE, '', [], true, false],
+		'mpgHighway'	=> ['mpg_highway', CLQL_SRC_FLAT_FILE, CLQL_INT_TYPE, CLQL_CONSTRAINT_RANGE_TYPE, '', [], true, false],
+		'mpgCombined'	=> ['mpg_combined', CLQL_SRC_FLAT_FILE, CLQL_INT_TYPE, CLQL_CONSTRAINT_RANGE_TYPE, '', [], true, false],
+
+		'horsepower'	=> ['engine_horsepower', CLQL_SRC_FLAT_FILE, CLQL_INT_TYPE, CLQL_CONSTRAINT_RANGE_TYPE, '', [], true, false],
+		'torque' 		=> ['engine_torque', CLQL_SRC_FLAT_FILE, CLQL_INT_TYPE, CLQL_CONSTRAINT_RANGE_TYPE, '', [], true, false],
+
+		'images' 		=> ['images', CLQL_SRC_COMPUTED, CLQL_STRING_TYPE, CLQL_CONSTRAINT_INVALID, '', [], false, false],
+
 		'seats' => ['num_seats', CLQL_SRC_FLAT_FILE, CLQL_INT_TYPE, CLQL_CONSTRAINT_RANGE_TYPE, '', [], true, false],
-		'horsepower' => ['horsepower', CLQL_SRC_FLAT_FILE, CLQL_INT_TYPE, CLQL_CONSTRAINT_RANGE_TYPE, '', [], true, false],
-		'imgPath' => ['img_path', CLQL_SRC_COMPUTED, CLQL_STRING_TYPE, CLQL_CONSTRAINT_INVALID,'', [], false, false],
-		'overallScore' => ['overall_score', CLQL_SRC_FLAT_FILE, CLQL_INT_TYPE, CLQL_CONSTRAINT_RANGE_TYPE, '', [], true, false],
+
+		'overallScore' => ['overall_score', CLQL_SRC_COMPUTED, CLQL_INT_TYPE, CLQL_CONSTRAINT_RANGE_TYPE, '', [], true, false],
+
 		'safety' => ['safety', CLQL_SRC_COMPUTED, CLQL_NUMERIC_TYPE, CLQL_CONSTRAINT_RANGE_TYPE, '', [], true, true],
 		'reliability' => ['reliability', CLQL_SRC_COMPUTED, CLQL_NUMERIC_TYPE, CLQL_CONSTRAINT_RANGE_TYPE, '', [], true, true],
 		'utility' => ['utility', CLQL_SRC_COMPUTED, CLQL_NUMERIC_TYPE, CLQL_CONSTRAINT_RANGE_TYPE, '', [], true, true],
 		'envy' => ['envy', CLQL_SRC_COMPUTED, CLQL_NUMERIC_TYPE, CLQL_CONSTRAINT_RANGE_TYPE, '', [], true, true],
-		'headroom' => ['headroom', CLQL_SRC_FLAT_FILE, CLQL_NUMERIC_TYPE, CLQL_CONSTRAINT_RANGE_TYPE, '', [], true, false],
-		'Quababble' => ['make_name', CLQL_SRC_FLAT_FILE, CLQL_STRING_TYPE, CLQL_CONSTRAINT_LIST_TYPE, 'N/A', [], true, false],
 	];
-
-	// local constants
-
-	const DEFAULT_PAD = '---*';
-	const DEFAULT_DEBUG = false;
-	const FORCE_DEFAULT_DEBUG = false;
 
 	/**
 	 * Class cons, do any init here!
@@ -449,6 +453,18 @@ class CLQLReqMgr {
 		return [];
 	}
 
+	public function getInternalConstraintsSection()
+	{
+		$internal = [];
+		foreach($this->CLQL_req[CLQL_SECTION_CONSTRAINTS] as $key => $value)
+		{
+			$internal[$this->mapExternalFldToInternal($key)] = $value;
+		}
+
+		return $internal;
+	}
+
+
 	/**
 	 * Helper to get the Score section. If not set, not found, invalid then
 	 * will return empty array. This implies that validateCLQLRequest() has been called.
@@ -465,6 +481,17 @@ class CLQLReqMgr {
 		}
 
 		return [];
+	}
+
+	public function getInternalScoreSection()
+	{
+		$internal = [];
+		foreach($this->CLQL_req[CLQL_SECTION_SCORE] as $key => $value)
+		{
+			$internal[$this->mapExternalFldToInternal($key)] = $value;
+		}
+
+		return $internal;
 	}
 
 	/**
@@ -484,6 +511,15 @@ class CLQLReqMgr {
 
 		return [];
 	}
+
+	public function getInternalFetchSection()
+	{
+		$internal = $this->CLQL_req[CLQL_SECTION_FETCH];
+
+		$internal['sort'] = $this->mapExternalFldToInternal($internal['sort']);	// just map sort field, it's the only one that needs xlate
+		return $internal;
+	}
+
 
 	/**
 	 * Helper to get the Requesting section. If not set, not found, invalid then
@@ -1016,7 +1052,7 @@ class CLQLReqMgr {
 							if(!is_int($value1))
 							{
 								$this->pushErrorStr('-->`'. $value1 . '` ' . gettype($value1) . ' Found, Expecting Integer');
-								$this->pushErrorStr('-->`'. $key .'` List');
+								$this->pushErrorStr('-->In `'. $key .'` List');
 								$this->pushErrorId(CLQL_STATUS_INVALID_CONSTRAINT_DATA_TYPE);
 								return false;
 							}
@@ -1026,7 +1062,7 @@ class CLQLReqMgr {
 							if(!(is_int($value1) || is_float($value1)))
 							{
 								$this->pushErrorStr('-->`'. $value1 . '` ' . gettype($value1) . ' Found, Expecting Numeric');
-								$this->pushErrorStr('-->`'. $key .'` List');
+								$this->pushErrorStr('-->In `'. $key .'` List');
 								$this->pushErrorId(CLQL_STATUS_INVALID_CONSTRAINT_DATA_TYPE);
 								return false;
 							}
@@ -1036,7 +1072,7 @@ class CLQLReqMgr {
 							if(!(is_string($value1)))
 							{
 								$this->pushErrorStr('-->`'. $value1 . '` ' . gettype($value1) . ' Found,  Expecting String');
-								$this->pushErrorStr('-->`'. $key .'` List');
+								$this->pushErrorStr('-->In `'. $key .'` List');
 								$this->pushErrorId(CLQL_STATUS_INVALID_CONSTRAINT_DATA_TYPE);
 								return false;
 							}
@@ -1048,7 +1084,7 @@ class CLQLReqMgr {
 								if(!isset($valid_list_elements[strtolower($value1)]))
 								{
 									$this->pushErrorStr('-->`'. $value1 . '` Unknown Element Value');
-									$this->pushErrorStr('-->`'. $key .'` List');
+									$this->pushErrorStr('-->In `'. $key .'` List');
 									$this->pushErrorId(CLQL_STATUS_INVALID_LIST_ITEM);
 									return false;
 								}
@@ -1502,6 +1538,11 @@ class CLQLReqMgr {
 	 * @param array $data The query data to be mapped. This is a flat name=>value mapping.
 	 * @param array &$output The entire record mapped (including sub-structures)
 	 * @param int &$status passed in status with a start of CLQL_STATUS_OK on initial call. Used to short circuit recursion on error.
+	 *
+	 * NOTE : NOTE : NOTE
+	 *
+	 * This function assumes that the incomming data field names are the INTERNAL data names and the
+	 * data that is placed in the $output will have the EXTERNAL (USER) field names.
 	 */
 
 	private function recurseMapRequestingSection($section, $data, &$output, &$status)
@@ -1549,16 +1590,20 @@ class CLQLReqMgr {
 			}
 			else
 			{
-				// value is the field name we need to map here
-				// should only be mapping data for fields here
-				//
-				// NOTE : if the value for $data[$value] is empty it
-				// this is where the look up into the $fld_tbl to see if it has one.
-				// THIS IS A TBD if needed.
+				// write field data now, not an array or sub structs.
+				// This take the incoming data as treats as the INTERNAL names
+				// and maps them to the EXTERNAL (USER) names. Default values are
+				// also stuffed if they exist and field data is not found.
 
-				if(!empty($data[$value]))
+				// Hints :
+				// $value -> External (USER) Field Name
+				// $xtern_fld_name -> Internal Field Name
+
+				$xtern_fld_name = $this->mapExternalFldToInternal($value);	// false if invalid map
+
+				if(!(empty($data[$xtern_fld_name]) || $xtern_fld_name === false))
 				{
-					$output[$value] = $data[$value];	// save as 'key => value'
+					$output[$value] = $data[$xtern_fld_name];	// save as 'key => value'
 				}
 				else
 				{
@@ -1579,6 +1624,12 @@ class CLQLReqMgr {
 	 *
 	 * @param array $query_results An array of records as provided by the query system. The
 	 * array is a record with each element as a key=>value pair.
+	 *
+	 * NOTE : NOTE : NOTE
+	 *
+	 * This function assumes that the incomming data field names in the $query_results are the INTERNAL data names and the
+	 * data that is placed in the $output will have the EXTERNAL (USER) field names.
+	 *
 	 */
 
 	public function mapCLQLRec($query_results)
