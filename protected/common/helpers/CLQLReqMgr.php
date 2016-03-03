@@ -456,9 +456,15 @@ class CLQLReqMgr {
 	public function getInternalConstraintsSection()
 	{
 		$internal = [];
+
+		if(empty($this->CLQL_req[CLQL_SECTION_CONSTRAINTS]))
+			return [];
+
+
 		foreach($this->CLQL_req[CLQL_SECTION_CONSTRAINTS] as $key => $value)
 		{
-			$internal[$this->mapExternalFldToInternal($key)] = $value;
+			if(($intern_fld = $this->mapExternalFldToInternal($key)) !== false)
+				$internal[$intern_fld] = $value;
 		}
 
 		return $internal;
@@ -486,9 +492,14 @@ class CLQLReqMgr {
 	public function getInternalScoreSection()
 	{
 		$internal = [];
+
+		if(empty($this->CLQL_req[CLQL_SECTION_SCORE]))
+			return [];
+
 		foreach($this->CLQL_req[CLQL_SECTION_SCORE] as $key => $value)
 		{
-			$internal[$this->mapExternalFldToInternal($key)] = $value;
+			if(($intern_fld = $this->mapExternalFldToInternal($key)) !== false)
+				$internal[$intern_fld] = $value;
 		}
 
 		return $internal;
@@ -516,8 +527,19 @@ class CLQLReqMgr {
 	{
 		$internal = $this->CLQL_req[CLQL_SECTION_FETCH];
 
-		$internal['sort'] = $this->mapExternalFldToInternal($internal['sort']);	// just map sort field, it's the only one that needs xlate
-		return $internal;
+		// silently ignore non-mappable user (external) fields
+
+		if(!empty($internal['sort']))
+		{
+			if(($intern_fld = $this->mapExternalFldToInternal($internal['sort'])) !== false)
+			{
+				$internal['sort'] = $this->mapExternalFldToInternal($internal['sort']);	// just map sort field, it's the only one that needs xlate
+			}
+
+			return $internal;
+		}
+		else
+			return false;
 	}
 
 
