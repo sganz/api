@@ -354,6 +354,33 @@ class CLQLReqMgr {
 		return $this->unique_field_list;
 	}
 
+	public function getInternalRequestingFields()
+	{
+		$this->pushDebugStr(__METHOD__, 0);
+
+		$internal = [];
+
+		if($this->CLQL_req_valid)
+		{
+			if(empty($this->unique_field_list))
+				return [];
+
+			// this mapping is a bit different since it's just an array, but
+			// will still use the offset as the key
+
+			foreach($this->unique_field_list as $key => $value)
+			{
+				if(($intern_fld = $this->mapExternalFldToInternal($value)) !== false)
+					$internal[$key] = $intern_fld;
+				else
+					unset($internal[$key]);	// remove invalid key in event of no map found.
+			}
+		}
+
+		return $internal;
+
+	}
+
 	/**
 	* Quick check to see if field exists in CLQL table
 	*
@@ -453,18 +480,42 @@ class CLQLReqMgr {
 		return [];
 	}
 
+	/**
+	 * Helper to get the Constraints section TRANSLATED WITH INTERNAL FIELD NAMES.
+	 * If not set, not found, invalid then will return empty array.
+	 *
+	 * This implies that validateCLQLRequest() has been called.
+	 *
+	 * @return array The sections data that is being requested
+	 *
+	 * NOTE : Any keys that are not able to be mapped by mapExternalFldToInternal()
+	 * will be removed from the translated array. This COULD cause an empty or
+	 * structure that has a missing element. The option is to have an invalid element
+	 * if this behavior is not desired. Remove unset() if this is the case.
+	 *
+	 */
+
 	public function getInternalConstraintsSection()
 	{
+		$this->pushDebugStr(__METHOD__, 0);
+
 		$internal = [];
 
-		if(empty($this->CLQL_req[CLQL_SECTION_CONSTRAINTS]))
-			return [];
-
-
-		foreach($this->CLQL_req[CLQL_SECTION_CONSTRAINTS] as $key => $value)
+		if($this->CLQL_req_valid)
 		{
-			if(($intern_fld = $this->mapExternalFldToInternal($key)) !== false)
-				$internal[$intern_fld] = $value;
+
+			if(empty($this->CLQL_req[CLQL_SECTION_CONSTRAINTS]))
+				return [];
+
+
+			foreach($this->CLQL_req[CLQL_SECTION_CONSTRAINTS] as $key => $value)
+			{
+				if(($intern_fld = $this->mapExternalFldToInternal($key)) !== false)
+					$internal[$intern_fld] = $value;
+				else
+					unset($internal[$key]);	// remove invalid key in event of no map found.
+			}
+
 		}
 
 		return $internal;
@@ -489,17 +540,39 @@ class CLQLReqMgr {
 		return [];
 	}
 
+	/**
+	 * Helper to get the Score section TRANSLATED WITH INTERNAL FIELD NAMES.
+	 * If not set, not found, invalid then will return empty array.
+	 *
+	 * This implies that validateCLQLRequest() has been called.
+	 *
+	 * @return array The sections data that is being requested
+	 *
+	 * NOTE : Any keys that are not able to be mapped by mapExternalFldToInternal()
+	 * will be removed from the translated array. This COULD cause an empty or
+	 * structure that has a missing element. The option is to have an invalid element
+	 * if this behavior is not desired. Remove unset() if this is the case.
+	 */
+
 	public function getInternalScoreSection()
 	{
+		$this->pushDebugStr(__METHOD__, 0);
+
 		$internal = [];
 
-		if(empty($this->CLQL_req[CLQL_SECTION_SCORE]))
-			return [];
-
-		foreach($this->CLQL_req[CLQL_SECTION_SCORE] as $key => $value)
+		if($this->CLQL_req_valid)
 		{
-			if(($intern_fld = $this->mapExternalFldToInternal($key)) !== false)
-				$internal[$intern_fld] = $value;
+			if(empty($this->CLQL_req[CLQL_SECTION_SCORE]))
+				return [];
+
+			foreach($this->CLQL_req[CLQL_SECTION_SCORE] as $key => $value)
+			{
+				if(($intern_fld = $this->mapExternalFldToInternal($key)) !== false)
+					$internal[$intern_fld] = $value;
+				else
+					unset($internal[$key]);	// remove invalid key in event of no map found.
+			}
+
 		}
 
 		return $internal;
@@ -523,23 +596,46 @@ class CLQLReqMgr {
 		return [];
 	}
 
+	/**
+	 * Helper to get the Fetch section TRANSLATED WITH INTERNAL FIELD NAMES.
+	 * If not set, not found, invalid then will return empty array.
+	 *
+	 * This implies that validateCLQLRequest() has been called.
+	 *
+	 * @return array The sections data that is being requested
+	 *
+	 * NOTE : Any keys that are not able to be mapped by mapExternalFldToInternal()
+	 * will be removed from the translated array. This COULD cause an empty or
+	 * structure that has a missing element. The option is to have an invalid element
+	 * if this behavior is not desired. Remove unset() if this is the case.
+	 */
+
 	public function getInternalFetchSection()
 	{
-		$internal = $this->CLQL_req[CLQL_SECTION_FETCH];
+		$this->pushDebugStr(__METHOD__, 0);
 
-		// silently ignore non-mappable user (external) fields
+		$internal = [];
 
-		if(!empty($internal['sort']))
+		if($this->CLQL_req_valid)
 		{
-			if(($intern_fld = $this->mapExternalFldToInternal($internal['sort'])) !== false)
-			{
-				$internal['sort'] = $this->mapExternalFldToInternal($internal['sort']);	// just map sort field, it's the only one that needs xlate
-			}
 
-			return $internal;
+			if(empty($this->CLQL_req[CLQL_SECTION_FETCH]))
+				return [];
+
+			$internal = $this->CLQL_req[CLQL_SECTION_FETCH];	// copy it over, only need to map 'sort' at this time
+
+			// remap just the sort fields value, which is the external (user)
+			// field name. All others should be untouched. If for some reason the sort name is not found
+			// (shouldn't but who knows), it will ignore and remove the sort option.
+
+			if(!empty($internal['sort']))
+				if(($intern_fld = $this->mapExternalFldToInternal($internal['sort'])) !== false)
+					$internal['sort'] = $this->mapExternalFldToInternal($internal['sort']);	// just map sort field, it's the only one that needs xlate
+				else
+					unset($internal['sort']);
 		}
-		else
-			return false;
+
+		return $internal;
 	}
 
 

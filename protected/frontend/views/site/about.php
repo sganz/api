@@ -107,13 +107,18 @@ $this->params['breadcrumbs'][] = $this->title;
 
 		echo 'Error Count : ' . $mgr->getErrorCnt();
 		echo '<br>Error String -<br>' . $mgr->getErrorString('<br>');
-        echo '--------------------------------------<br>';
-        echo 'Requested Fields -<br>';
+
+        echo '<br>User Requested Fields ----------------<br>';
 		foreach($mgr->getRequestingFields() as $fld_name)
 			echo 'Field : ' . $fld_name . '<br>';
+        echo '<br>Internal Requested Fields ------------<br>';
+		foreach($mgr->getInternalRequestingFields() as $fld_name)
+			echo 'Field : ' . $fld_name . '<br>';
+
         echo '<br>Dumping Constraints  -----------------<br>';
+
 		VarDumper::dump($mgr->getConstraintsSection(), 10, true);
-        echo '<br>Dumping Constraints  -----------------<br>';
+        echo '<br>Dumping Internal Constraints  --------<br>';
 		VarDumper::dump($mgr->getInternalConstraintsSection(), 10, true);
         echo '<br>Dumping Fetch-------------------------<br>';
 		VarDumper::dump($mgr->getFetchSection(), 10, true);
